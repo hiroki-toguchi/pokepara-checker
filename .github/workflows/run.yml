@@ -2,7 +2,7 @@ name: check_blog
 
 on:
   schedule:
-    - cron: "*/3 * * * *"  # 3分おき
+    - cron: "*/3 * * * *"
   workflow_dispatch:
 
 env:
@@ -13,36 +13,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # コード取得
       - uses: actions/checkout@v3
 
-      # Python セットアップ
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      # 必要パッケージインストール
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 前回記事取得（artifactからダウンロード）
+      # artifact ダウンロード（v4に変更）
       - name: Download last blog
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: last_blog
           path: ./last_blog/
         continue-on-error: true
 
-      # 最新記事取得
       - name: Run Python to get latest blog
         id: blog
         run: python main.py
 
-      # 新着記事がある場合のみ Discord 通知
+      # Discord通知（v3に変更）
       - name: Send Discord Notification
         if: steps.blog.outputs.new == 'true'
-        uses: Ilshidur/action-discord@v2
+        uses: Ilshidur/action-discord@v3
         with:
           webhook: ${{ secrets.WEBHOOK_URL }}
           message: |
@@ -51,10 +47,10 @@ jobs:
             URL: ${{ steps.blog.outputs.link }}
             画像: ${{ steps.blog.outputs.img }}
 
-      # 新着があれば last.txt を artifact として保存
+      # artifact 保存（v4に変更）
       - name: Upload last blog
         if: steps.blog.outputs.new == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: last_blog
           path: last.txt
