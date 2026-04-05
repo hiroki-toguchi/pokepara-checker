@@ -1,9 +1,12 @@
-name: check
+name: check_blog
 
 on:
   schedule:
     - cron: "*/3 * * * *"
   workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   run:
@@ -12,15 +15,47 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Pythonセットアップ
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: install
+      - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: 実行
+      # 前回記事取得
+      - name: Download last blog
+        uses: actions/download-artifact@v4
+        with:
+          name: last_blog
+          path: ./last_blog/
+        continue-on-error: true
+
+      - name: Run Python to get latest blog
+        id: blog
         run: python main.py
-        env:
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+
+      # 新着だけ通知
+      - name: Send Discord Notification
+        if: steps.blog.outputs.new == 'true'
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d '{
+              "embeds":[
+                {
+                  "title":"新着ブログ！",
+                  "description":"'"${{ steps.blog.outputs.title }}"'",
+                  "url":"'"${{ steps.blog.outputs.link }}"'",
+                  "image":{"url":"'"${{ steps.blog.outputs.img }}"'"}
+                }
+              ]
+            }' \
+            ${{ secrets.WEBHOOK_URL }}
+
+      - name: Upload last blog
+        if: steps.blog.outputs.new == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: last_blog
+          path: last.txt
