@@ -3,29 +3,24 @@ from bs4 import BeautifulSoup
 import os
 
 URL = "https://sp.pokepara.jp/tokyo/m9/a10034/shop4995/gal/777801/blog/"
-WEBHOOK_URL = os.environ["WEBHOOK_URL"]
+LAST_FILE = "last.txt"
 
-def send_discord(title, link, img):
-    data = {
-        "embeds": [
-            {
-                "title": "新着ブログ！",
-                "description": title,
-                "url": link,
-                "image": {"url": img} if img else {},
-            }
-        ]
-    }
-    requests.post(WEBHOOK_URL, json=data)
+# 前回記事を取得
+try:
+    with open(LAST_FILE, "r") as f:
+        last_title = f.read().strip()
+except:
+    last_title = ""
 
-def get_latest():
-    res = requests.get(URL)
-    soup = BeautifulSoup(res.text, "html.parser")
+# ブログページを取得
+res = requests.get(URL)
+soup = BeautifulSoup(res.text, "html.parser")
 
-    article = soup.select_one(".blog_list li")
-    if not article:
-        return None, None, None
+# 最新記事を取得
+article = soup.select_one(".blog_list li")
+title, link, img = "", "", ""
 
+if article:
     title = article.get_text(strip=True)
 
     link_tag = article.find("a")
@@ -34,29 +29,24 @@ def get_latest():
         link = "https://sp.pokepara.jp" + link
 
     img_tag = article.find("img")
-    img = img_tag["src"] if img_tag else None
-    if img and img.startswith("/"):
+    img = img_tag["src"] if img_tag else ""
+    if img.startswith("/"):
         img = "https://sp.pokepara.jp" + img
 
-    return title, link, img
+# 出力用関数（GitHub Actions の推奨方式）
+def set_output(name, value):
+    with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        f.write(f"{name}={value}\n")
 
-def main():
-    title, link, img = get_latest()
-    if not title:
-        return
+# 新着チェック
+if title and title != last_title:
+    set_output("new", "true")
+    set_output("title", title)
+    set_output("link", link)
+    set_output("img", img)
 
-    latest = title + link
-
-    try:
-        with open("last.txt", "r") as f:
-            old = f.read()
-    except:
-        old = ""
-
-    if latest != old:
-        send_discord(title, link, img)
-        with open("last.txt", "w") as f:
-            f.write(latest)
-
-if __name__ == "__main__":
-    main()
+    # last.txt 更新
+    with open(LAST_FILE, "w") as f:
+        f.write(title)
+else:
+    set_output("new", "false")
