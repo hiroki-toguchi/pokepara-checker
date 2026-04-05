@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # artifact ダウンロード（v4に変更）
+      # 前回記事取得
       - name: Download last blog
         uses: actions/download-artifact@v4
         with:
@@ -35,19 +35,24 @@ jobs:
         id: blog
         run: python main.py
 
-      # Discord通知（v3に変更）
+      # 新着だけ通知
       - name: Send Discord Notification
         if: steps.blog.outputs.new == 'true'
-        uses: Ilshidur/action-discord@v3
-        with:
-          webhook: ${{ secrets.WEBHOOK_URL }}
-          message: |
-            新着ブログ！
-            タイトル: ${{ steps.blog.outputs.title }}
-            URL: ${{ steps.blog.outputs.link }}
-            画像: ${{ steps.blog.outputs.img }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d '{
+              "embeds":[
+                {
+                  "title":"新着ブログ！",
+                  "description":"'"${{ steps.blog.outputs.title }}"'",
+                  "url":"'"${{ steps.blog.outputs.link }}"'",
+                  "image":{"url":"'"${{ steps.blog.outputs.img }}"'"}
+                }
+              ]
+            }' \
+            ${{ secrets.WEBHOOK_URL }}
 
-      # artifact 保存（v4に変更）
       - name: Upload last blog
         if: steps.blog.outputs.new == 'true'
         uses: actions/upload-artifact@v4
