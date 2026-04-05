@@ -12,37 +12,41 @@ try:
 except:
     last_title = ""
 
+# ブログページを取得
 res = requests.get(URL)
 soup = BeautifulSoup(res.text, "html.parser")
-article = soup.select_one(".blog_list li")
 
-# 出力用関数（GitHub Actions 環境ファイル方式）
-def set_output(name, value):
-    with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-        f.write(f"{name}={value}\n")
+# 最新記事を取得
+article = soup.select_one(".blog_list li")
+title, link, img = "", "", ""
 
 if article:
     title = article.get_text(strip=True)
+
     link_tag = article.find("a")
     link = link_tag["href"] if link_tag else ""
     if link.startswith("/"):
         link = "https://sp.pokepara.jp" + link
+
     img_tag = article.find("img")
     img = img_tag["src"] if img_tag else ""
     if img.startswith("/"):
         img = "https://sp.pokepara.jp" + img
 
-    if title != last_title:
-        # 新着あり
-        set_output("new", "true")
-        set_output("title", title)
-        set_output("link", link)
-        set_output("img", img)
+# 出力用関数（GitHub Actions の推奨方式）
+def set_output(name, value):
+    with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        f.write(f"{name}={value}\n")
 
-        # last.txt を更新
-        with open(LAST_FILE, "w") as f:
-            f.write(title)
-    else:
-        set_output("new", "false")
+# 新着チェック
+if title and title != last_title:
+    set_output("new", "true")
+    set_output("title", title)
+    set_output("link", link)
+    set_output("img", img)
+
+    # last.txt 更新
+    with open(LAST_FILE, "w") as f:
+        f.write(title)
 else:
     set_output("new", "false")
