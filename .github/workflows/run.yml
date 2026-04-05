@@ -23,36 +23,38 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 前回記事取得
+      # 前回記事取得（初回でもエラー無視）
       - name: Download last blog
         uses: actions/download-artifact@v4
         with:
           name: last_blog
-          path: ./last_blog/
+          path: .
         continue-on-error: true
 
       - name: Run Python to get latest blog
         id: blog
         run: python main.py
 
-      # 新着だけ通知
+      # 新着記事がある場合のみ Discord 通知
       - name: Send Discord Notification
         if: steps.blog.outputs.new == 'true'
         run: |
+          echo "Sending Discord notification..."
           curl -H "Content-Type: application/json" \
-            -X POST \
-            -d '{
-              "embeds":[
-                {
-                  "title":"新着ブログ！",
-                  "description":"'"${{ steps.blog.outputs.title }}"'",
-                  "url":"'"${{ steps.blog.outputs.link }}"'",
-                  "image":{"url":"'"${{ steps.blog.outputs.img }}"'"}
-                }
-              ]
-            }' \
-            ${{ secrets.WEBHOOK_URL }}
+               -X POST \
+               -d '{
+                 "embeds":[
+                   {
+                     "title":"新着ブログ！",
+                     "description":"'"${{ steps.blog.outputs.title }}"'",
+                     "url":"'"${{ steps.blog.outputs.link }}"'",
+                     "image":{"url":"'"${{ steps.blog.outputs.img }}"'"}
+                   }
+                 ]
+               }' \
+               ${{ secrets.WEBHOOK_URL }}
 
+      # 新着があれば last.txt を artifact として保存
       - name: Upload last blog
         if: steps.blog.outputs.new == 'true'
         uses: actions/upload-artifact@v4
