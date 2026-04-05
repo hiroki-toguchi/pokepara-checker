@@ -2,21 +2,24 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-# ブログURL
 URL = "https://sp.pokepara.jp/tokyo/m9/a10034/shop4995/gal/777801/blog/"
+LAST_FILE = "last.txt"
 
-# 前回記事タイトルを取得
-last_file = "last.txt"
+# 前回記事を取得
 try:
-    with open(last_file, "r") as f:
+    with open(LAST_FILE, "r") as f:
         last_title = f.read().strip()
 except:
     last_title = ""
 
-# 最新記事取得
 res = requests.get(URL)
 soup = BeautifulSoup(res.text, "html.parser")
 article = soup.select_one(".blog_list li")
+
+# 出力用関数（GitHub Actions 環境ファイル方式）
+def set_output(name, value):
+    with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        f.write(f"{name}={value}\n")
 
 if article:
     title = article.get_text(strip=True)
@@ -29,18 +32,17 @@ if article:
     if img.startswith("/"):
         img = "https://sp.pokepara.jp" + img
 
-    # 新着かチェック
     if title != last_title:
         # 新着あり
-        print(f"::set-output name=new::true")
-        print(f"::set-output name=title::{title}")
-        print(f"::set-output name=link::{link}")
-        print(f"::set-output name=img::{img}")
+        set_output("new", "true")
+        set_output("title", title)
+        set_output("link", link)
+        set_output("img", img)
 
-        # 次回用に last.txt を更新
-        with open(last_file, "w") as f:
+        # last.txt を更新
+        with open(LAST_FILE, "w") as f:
             f.write(title)
     else:
-        print("::set-output name=new::false")
+        set_output("new", "false")
 else:
-    print("::set-output name=new::false")
+    set_output("new", "false")
